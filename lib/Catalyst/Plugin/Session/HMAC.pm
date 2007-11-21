@@ -133,7 +133,7 @@ sub prepare_session {
     
     if(my $error = $@){
         $error =~ s/at .+?$//;
-        $c->log->warn($error);# unless $error =~ /No session cookie/;
+        $c->log->warn($error) unless $error =~ /No session cookie/;
         $c->_prepare_empty_session;
     }
     
