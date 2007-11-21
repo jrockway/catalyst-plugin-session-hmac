@@ -1,4 +1,4 @@
-package Catalyst::Plugin::Session::HMAC;
+package Catalyst::Plugin::Session::Store::Cookie;
 use strict;
 use warnings;
 use Crypt::Util;
