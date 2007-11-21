@@ -43,8 +43,8 @@ sub prepare_cookies {
 
 sub finalize_cookies {
     my $c = shift;
-    $c->next::method(@_);
     $c->finalize_session;
+    $c->next::method(@_);
     return;
 }
 
@@ -74,8 +74,9 @@ sub prepare_session { # XXX: too many returns!
     }
 
     # if thawed session is not expired, or has no expiry; use it
-    if(!$session->{expires} || $session->{expires} - time() > 0){
+    if(!$session->{__expires} || $session->{__expires} - time() > 0){
         $c->{session} = $session;
+        delete $c->{session}{__expires}; # none of the user's business
         return;
     }
     
@@ -93,7 +94,7 @@ sub finalize_session {
 
     # munge session
     my $session_hash = delete $c->{session};
-    $session_hash->{expires} = $perl_expires;
+    $session_hash->{__expires} = $perl_expires;
     
     # serialize it
     my $session = $c->_freeze_session_hash($session_hash);
@@ -115,7 +116,7 @@ sub _session_config {
 }
 
 sub _session_cookie_key_name {
-    return ref $_[0] . '_session';
+    return lc(ref $_[0] || $_[0]). '_session';
 }
 
 sub _prepare_empty_session {
@@ -161,6 +162,8 @@ sub _freeze_session_hash {
 
 sub _thaw_session_string {
     my ($c, $string) = @_;
+    $string = $string->[0] if ref $string; # XXX: what?
+    
     return $util->thaw_tamper_proof(
         $util->decode_string_printable($string),
         key => $c->_session_config->{key},
