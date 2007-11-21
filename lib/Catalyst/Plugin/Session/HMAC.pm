@@ -3,11 +3,36 @@ use strict;
 use warnings;
 use Crypt::Util;
 use Class::C3;
-my $util = Crypt::Util->new;
 
 our $VERSION = '0.01';
 
 # public API
+
+## session
+
+sub sessionid { die 'there is no such thing for HMAC sessions' }
+
+sub session_expires {
+    my ($c) = @_;
+    return $c->_calculate_session_expiry;
+}
+
+sub delete_session {
+    $_[0]->_prepare_empty_session;
+    return;
+}
+
+sub delete_session_reason {
+    return 'not implemented';
+}
+
+sub session_expire_key { # this is not auto-extended like everything else
+    my ( $c, %keys ) = @_;
+    
+    my $now = time;
+    @{ $c->session->{$c->_session_expire_keys_key_name} }{ keys %keys } =
+      map { $now + $_ } values %keys;
+}
 
 sub session {
     my $c = shift;
@@ -15,17 +40,24 @@ sub session {
     return $c->{session};
 }
 
+## flash
+
 sub flash {
     my $c = shift;
+    $c->{session}{$c->_session_used_flash_key_name} = 1;
     return $c->{session}{flash};
 }
 
-sub session_expire_key {
-    my ( $c, %keys ) = @_;
+sub clear_flash {
+    my $c = shift;
+    $c->{session}{flash} = {};
+    return;
+}
 
-    my $now = time;
-    @{ $c->session->{__expire_keys} }{ keys %keys } =
-      map { $now + $_ } values %keys;
+sub keep_flash {
+    my ($c, @keys) = @_;
+    $c->{session}{$c->_flash_keep_key_name}{$_} = undef for @keys;
+    return;
 }
 
 # hook into catalyst
@@ -40,6 +72,17 @@ sub setup {
       unless defined $app->_session_config->{expires};
     
     return $app->next::method(@_);
+}
+
+sub prepare_action {
+    my $c = shift;
+
+    # move flash to stash    
+    my $flash_data = $c->{session}{flash};
+    @{ $c->stash }{ keys %$flash_data } = values %$flash_data
+      if $c->_session_config->{flash_to_stash} && $flash_data;
+    
+    return $c->next::method(@_);
 }
 
 sub prepare_cookies {
@@ -58,40 +101,42 @@ sub finalize_cookies {
 
 # our hooks for other people
 
-sub prepare_session { # XXX: too many returns!
+sub prepare_session {
     my $c = shift;
 
-    # get crypted session data
-    my $cookie = $c->req->cookies->{$c->_session_cookie_key_name};
-    if(!$cookie){
-        $c->_prepare_empty_session;
-        return;
-    }
+    eval {
+        # get crypted session data
+        my $cookie = $c->req->cookies->{$c->_session_cookie_key_name};
+        die 'No session cookie' if !$cookie;
+        
+        # thaw
+        my $session = eval { $c->_thaw_session_string($cookie->{value}) };
+        die q{Invalid session cookie received from '}. 
+          $c->req->address. qq{' ($@)}
+            if !$session;
+        
+        # check address
+        die q{Address mismatch; was }. $session->{__address}. 
+            q{ now is }. $c->req->address
+              if $c->_session_config->{check_addresss} && 
+                 $session->{$c->_session_address_key_name} && 
+                 $session->{$c->_session_address_key_name} ne $c->req->address;
+        
+        # if thawed session is not expired, or has no expiry; use it
+        die q{'}. $c->req->address. q{' sent an expired session}
+          unless !$session->{$c->_session_expiry_key_name} || 
+            $session->{$c->_session_expiry_key_name} - time() > 0 ;
 
-    # thaw
-    my $session = eval { $c->_thaw_session_string($cookie->{value}) };
-    if(!$session){
-        # session was invalid (sig didn't validate)
-        $c->log->warn(
-            q{Invalid session cookie received from '}. 
-              $c->req->hostname.
-                qq{' ($@)}
-        );
-        $c->_prepare_empty_session;
-        return;
-    }
-
-    # if thawed session is not expired, or has no expiry; use it
-    if(!$session->{$c->_session_expiry_key_name} || $session->{$c->_session_expiry_key_name} - time() > 0){
+        # you made it this far! 50 GP
         $c->_prepare_valid_session($session);
-        return;
+    };
+    
+    if(my $error = $@){
+        $error =~ s/at .+?$//;
+        $c->log->warn($error);# unless $error =~ /No session cookie/;
+        $c->_prepare_empty_session;
     }
     
-    # expired session, kill it
-    $c->log->debug(q{'}. $c->req->hostname. q{' sent an expired session})
-      if $c->log->is_debug;
-    
-    $c->_prepare_empty_session;
     return;
 }
 
@@ -105,6 +150,18 @@ sub finalize_session {
     # munge session
     my $session_hash = delete $c->{session};
     $session_hash->{$c->_session_expiry_key_name} = $perl_expires;
+    $session_hash->{$c->_session_address_key_name} = $c->req->address;
+    
+    # delete unchanged flash keys if we used the flash this request
+    if($session_hash->{$c->_session_used_flash_key_name}){
+        foreach my $key (%{$session_hash->{$c->_flash_keep_key_name}}){
+            my $value = $session_hash->{$c->_flash_keep_key_name}{$key};
+            delete $session_hash->{flash}{$_}
+              if defined $value && $session_hash->{flash}{$_} eq $value;
+        }
+    }
+    delete $session_hash->{$c->_session_used_flash_key_name};
+    delete $session_hash->{$c->_flash_keep_key_name};
     
     # serialize it
     my $session = $c->_freeze_session_hash($session_hash);
@@ -129,9 +186,29 @@ sub _session_cookie_key_name {
     return lc(ref $_[0] || $_[0]). '_session';
 }
 
+# not blessing is a blessing in disguise?  no.
+
 sub _session_expiry_key_name {
     return '__expires';
 }
+
+sub _session_address_key_name {
+    return '__address';
+}
+
+sub _flash_keep_key_name {
+    return '__keep_flash';
+}
+
+sub _session_expire_keys_key_name {
+    return '__expire_keys';
+}
+
+sub _session_used_flash_key_name {
+    return '__used_flash';
+}
+
+# make $c->{session} hashes
 
 sub _prepare_empty_session {
     my $c = shift;
@@ -141,12 +218,15 @@ sub _prepare_empty_session {
 
 sub _prepare_valid_session {
     my ($c, $session) = @_;
+
     $c->{session} = $session;
     delete $c->{session}{$c->_session_expiry_key_name};
+    delete $c->{session}{$c->_session_address_key_name};
+    
     my $now = time;
-    my $expire_times = $c->{session}{__expire_keys};
+    my $expire_times = $c->{session}{$c->_session_expire_keys_key_name};
     foreach my $key (grep { $expire_times->{$_} < $now } keys %$expire_times){
-        delete $c->_session->{$key};
+        delete $c->{session}{$key};
         delete $expire_times->{$key};
     }
     return;
@@ -176,6 +256,8 @@ sub _calculate_session_expiry {
     }
     return; # undef if expires == 0
 }
+
+my $util = Crypt::Util->new;
 
 sub _freeze_session_hash {
     my ($c, $hash) = @_;

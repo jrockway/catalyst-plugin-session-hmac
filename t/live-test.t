@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 3;
+use Test::More tests => 9;
 
 # setup library path
 use FindBin qw($Bin);
@@ -17,3 +17,7 @@ my $mech = Test::WWW::Mechanize::Catalyst->new;
 $mech->get_ok('http://localhost/', 'get main page');
 $mech->content_like(qr/it works/i, 'see if it has our text');
 
+for(1..3){
+    $mech->get_ok('http://localhost/increment');
+    $mech->content_like(qr/count is now $_/);
+}
