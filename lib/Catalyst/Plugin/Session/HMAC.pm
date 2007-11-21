@@ -74,13 +74,16 @@ sub prepare_session { # XXX: too many returns!
     }
 
     # if thawed session is not expired, or has no expiry; use it
-    if(!$session->{__expires} || $session->{__expires} - time() > 0){
+    if(!$session->{$c->_session_expiry_key_name} || $session->{$c->_session_expiry_key_name} - time() > 0){
         $c->{session} = $session;
-        delete $c->{session}{__expires}; # none of the user's business
+        delete $c->{session}{$c->_session_expiry_key_name}; # none of the user's business
         return;
     }
     
     # expired session, kill it
+    $c->log->debug(q{'}. $c->req->hostname. q{' sent an expired session})
+      if $c->log->is_debug;
+    
     $c->_prepare_empty_session;
     return;
 }
@@ -94,7 +97,7 @@ sub finalize_session {
 
     # munge session
     my $session_hash = delete $c->{session};
-    $session_hash->{__expires} = $perl_expires;
+    $session_hash->{$c->_session_expiry_key_name} = $perl_expires;
     
     # serialize it
     my $session = $c->_freeze_session_hash($session_hash);
@@ -117,6 +120,10 @@ sub _session_config {
 
 sub _session_cookie_key_name {
     return lc(ref $_[0] || $_[0]). '_session';
+}
+
+sub _session_expiry_key_name {
+    return '__expires';
 }
 
 sub _prepare_empty_session {
