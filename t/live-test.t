@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 9;
+use Test::More tests => 16;
 
 # setup library path
 use FindBin qw($Bin);
@@ -21,3 +21,13 @@ for(1..3){
     $mech->get_ok('http://localhost/increment');
     $mech->content_like(qr/count is now $_/);
 }
+
+diag "Testing expiration; this might fail if your machine is too loaded.";
+$mech->get_ok('http://localhost/expire_counter');
+$mech->get_ok('http://localhost/increment');
+$mech->content_like(qr/count is now 4/);
+sleep 6;
+$mech->get_ok('http://localhost/increment');
+$mech->content_like(qr/count is now 1/);
+$mech->get_ok('http://localhost/get_non_expired_key');
+$mech->content_like(qr/bar/);
