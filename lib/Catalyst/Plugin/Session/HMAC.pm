@@ -44,7 +44,10 @@ sub session {
 
 sub flash {
     my $c = shift;
-    $c->{session}{$c->_session_used_flash_key_name} = 1;
+
+    # on the first hit, note the keys for deletion
+    $c->{session}{$c->_flash_keep_key_name} = {%{$c->{session}{flash}}}
+      if !$c->{session}{$c->_flash_keep_key_name};
     return $c->{session}{flash};
 }
 
@@ -153,14 +156,12 @@ sub finalize_session {
     $session_hash->{$c->_session_address_key_name} = $c->req->address;
     
     # delete unchanged flash keys if we used the flash this request
-    if($session_hash->{$c->_session_used_flash_key_name}){
-        foreach my $key (%{$session_hash->{$c->_flash_keep_key_name}}){
-            my $value = $session_hash->{$c->_flash_keep_key_name}{$key};
-            delete $session_hash->{flash}{$_}
-              if defined $value && $session_hash->{flash}{$_} eq $value;
-        }
+    #use YAML; warn Dump($session_hash);
+    foreach my $key (%{$session_hash->{$c->_flash_keep_key_name} || {}}){
+        my $value = $session_hash->{$c->_flash_keep_key_name}{$key};
+        delete $session_hash->{flash}{$key}
+          if defined $value && $session_hash->{flash}{$key} eq $value;
     }
-    delete $session_hash->{$c->_session_used_flash_key_name};
     delete $session_hash->{$c->_flash_keep_key_name};
     
     # serialize it
@@ -202,10 +203,6 @@ sub _flash_keep_key_name {
 
 sub _session_expire_keys_key_name {
     return '__expire_keys';
-}
-
-sub _session_used_flash_key_name {
-    return '__used_flash';
 }
 
 # make $c->{session} hashes
