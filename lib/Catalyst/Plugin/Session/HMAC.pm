@@ -81,9 +81,10 @@ sub prepare_action {
     my $c = shift;
 
     # move flash to stash    
-    my $flash_data = $c->{session}{flash};
-    @{ $c->stash }{ keys %$flash_data } = values %$flash_data
-      if $c->_session_config->{flash_to_stash} && $flash_data;
+    if($c->_session_config->{flash_to_stash}){
+        my $flash_data = $c->flash; # this counts as a read
+        @{ $c->stash }{ keys %$flash_data } = values %$flash_data;
+    }
     
     return $c->next::method(@_);
 }
