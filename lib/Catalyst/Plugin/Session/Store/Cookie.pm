@@ -2,7 +2,9 @@ package Catalyst::Plugin::Session::Store::Cookie;
 use strict;
 use warnings;
 use Crypt::Util;
-use Class::C3;
+use NEXT;
+
+use base qw(Catalyst::Plugin::Session::Store Catalyst::Plugin::Session::State);
 
 our $VERSION = '0.00_01';
 
@@ -36,7 +38,7 @@ sub session_expire_key { # this is not auto-extended like everything else
 
 sub session {
     my $c = shift;
-    die "It is too early/late to call $c->session" if !$c->{session};
+    die 'It is too early/late to call $c->session' if !$c->{session};
     return $c->{session};
 }
 
@@ -74,7 +76,7 @@ sub setup {
     $app->_session_config->{expires} = 3600 
       unless defined $app->_session_config->{expires};
     
-    return $app->next::method(@_);
+    return $app->NEXT::setup(@_);
 }
 
 sub prepare_action {
@@ -86,12 +88,12 @@ sub prepare_action {
         @{ $c->stash }{ keys %$flash_data } = values %$flash_data;
     }
     
-    return $c->next::method(@_);
+    return $c->NEXT::prepare_action(@_);
 }
 
 sub prepare_cookies {
     my $c = shift;
-    $c->next::method(@_);
+    $c->NEXT::prepare_cookies(@_);
     $c->prepare_session;
     return;
 }
@@ -99,7 +101,7 @@ sub prepare_cookies {
 sub finalize_cookies {
     my $c = shift;
     $c->finalize_session;
-    $c->next::method(@_);
+    $c->NEXT::finalize_cookies(@_);
     return;
 }
 
@@ -289,13 +291,6 @@ sub reset_session_expires {}
 sub session_is_valid { 1 }
 sub set_session_id {}
 
-
-BEGIN {
-    package Catalyst::Plugin::Session;
-    1;
-}
-
-our @ISA = qw(Catalyst::Plugin::Session); # dumbass auth plugins check this
 
 1;
 __END__
