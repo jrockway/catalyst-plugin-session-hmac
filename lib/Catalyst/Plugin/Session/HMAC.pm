@@ -75,8 +75,7 @@ sub prepare_session { # XXX: too many returns!
 
     # if thawed session is not expired, or has no expiry; use it
     if(!$session->{$c->_session_expiry_key_name} || $session->{$c->_session_expiry_key_name} - time() > 0){
-        $c->{session} = $session;
-        delete $c->{session}{$c->_session_expiry_key_name}; # none of the user's business
+        $c->_prepare_valid_session($session);
         return;
     }
     
@@ -130,6 +129,12 @@ sub _prepare_empty_session {
     my $c = shift;
     $c->{session} = { flash => {} };
     return;
+}
+
+sub _prepare_valid_session {
+    my ($c, $session) = @_;
+    $c->{session} = $session;
+    delete $c->{session}{$c->_session_expiry_key_name};
 }
 
 sub _session_cookie_extra_opts {
