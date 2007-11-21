@@ -1,13 +1,10 @@
 use inc::Module::Install;
 
-my $module = 'Catalyst::Plugin::Session::HMAC';
+name 'Catalyst-Plugin-Session-HMAC';
+all_from 'lib/Catalyst/Plugin/Session/HMAC.pm';
 
-my $dist   = $module;
-$dist =~ s/::/-/g;
-name($dist);
-
-my @path = split '::', $module;
-all_from('lib/'. (join '/',@path). '.pm');
+requires 'Crypt::Util' => '0.05';
+requires 'Class::C3';
 
 build_requires 'Catalyst::Runtime';
 build_requires 'Test::WWW::Mechanize::Catalyst';
