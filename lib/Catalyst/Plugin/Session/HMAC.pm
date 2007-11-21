@@ -276,6 +276,26 @@ sub _thaw_session_string {
     );
 }
 
+# methods for compat that do nothing.
+sub calculate_extended_session_expires {}
+sub calculate_initial_session_expires {}
+sub create_session_id_if_needed {}
+sub delete_session_id {}
+sub extend_session_expires {}
+sub extend_session_id {}
+sub get_session_id { $_[0]->sessionid }
+sub reset_session_expires {}
+sub session_is_valid { 1 }
+sub set_session_id {}
+
+
+BEGIN {
+    package Catalyst::Plugin::Session;
+    1;
+}
+
+our @ISA = qw(Catalyst::Plugin::Session); # dumbass auth plugins check this
+
 1;
 __END__
 
@@ -287,4 +307,5 @@ instead of on the server
 =head1 SYNOPSIS
 
 =cut
+
 
