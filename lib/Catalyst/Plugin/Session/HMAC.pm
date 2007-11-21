@@ -20,6 +20,14 @@ sub flash {
     return $c->{session}{flash};
 }
 
+sub session_expire_key {
+    my ( $c, %keys ) = @_;
+
+    my $now = time;
+    @{ $c->session->{__expire_keys} }{ keys %keys } =
+      map { $now + $_ } values %keys;
+}
+
 # hook into catalyst
 
 sub setup {
@@ -135,6 +143,13 @@ sub _prepare_valid_session {
     my ($c, $session) = @_;
     $c->{session} = $session;
     delete $c->{session}{$c->_session_expiry_key_name};
+    my $now = time;
+    my $expire_times = $c->{session}{__expire_keys};
+    foreach my $key (grep { $expire_times->{$_} < $now } keys %$expire_times){
+        delete $c->_session->{$key};
+        delete $expire_times->{$key};
+    }
+    return;
 }
 
 sub _session_cookie_extra_opts {
