@@ -4,7 +4,7 @@ use warnings;
 use Crypt::Util;
 use Class::C3;
 
-our $VERSION = '0.01';
+our $VERSION = '0.00_01';
 
 # public API
 
