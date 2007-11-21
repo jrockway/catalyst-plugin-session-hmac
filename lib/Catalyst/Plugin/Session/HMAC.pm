@@ -96,7 +96,7 @@ sub finalize_session {
     $session_hash->{expires} = $perl_expires;
     
     # serialize it
-    my $session = $c->_freeze_session_hash($c->{session});
+    my $session = $c->_freeze_session_hash($session_hash);
     
     # set it up as a cookie
     # TODO split big sessions
@@ -152,8 +152,8 @@ sub _calculate_session_expiry {
 sub _freeze_session_hash {
     my ($c, $hash) = @_;
     return $util->encode_string_printable(
-        $util->tamper_proof_string(
-            $c->hash,
+        $util->tamper_proof(
+            $hash || {},
             key => $c->_session_config->{key},
         )
     );
