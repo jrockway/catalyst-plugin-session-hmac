@@ -36,7 +36,7 @@ sub session_expire_key { # this is not auto-extended like everything else
 
 sub session {
     my $c = shift;
-    die "It is too early/late to call $c->session" if !$c->{session};
+    die 'It is too early/late to call $c->session' if !$c->{session};
     return $c->{session};
 }
 
@@ -67,7 +67,7 @@ sub keep_flash {
 
 sub setup {
     my $app = shift;
-    die "you must specify a cryptography key as $app->_session_config->{key}"
+    die 'you must specify a cryptography key as $app->config->{session}{key}'
       unless $app->config;
 
     # default timeout (0 means never)
