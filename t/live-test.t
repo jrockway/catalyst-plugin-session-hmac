@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Test::More tests => 19;
+use Test::More tests => 23;
 use URI::Escape;
 
 # setup library path
@@ -27,6 +27,9 @@ $mech->cookie_jar->scan(
 );
 
 ok $orig_expires, 'got expiry from cryptocookie OF DEATH';
+
+$mech->get_ok('http://localhost/request_count');
+$mech->content_like(qr/2/, '2 requests so far');
 
 for(1..3){
     $mech->get_ok('http://localhost/increment');
@@ -53,3 +56,6 @@ $mech->cookie_jar->scan(
 
 ok $new_expires, 'got new expiry';
 ok $new_expires > $orig_expires, 'expiry moved forward with time';
+
+$mech->get_ok('http://localhost/request_count');
+$mech->content_like(qr/10/, '10 requests so far');

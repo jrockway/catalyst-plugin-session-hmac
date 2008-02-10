@@ -1,6 +1,7 @@
 package Catalyst::Plugin::Session::HMAC::Compat;
 use strict;
 use warnings;
+use Class::C3;
 
 # public API
 sub sessionid { goto &Catalyst::Plugin::Session::HMAC::hmac_session_id }
@@ -13,9 +14,8 @@ sub flash { goto &Catalyst::Plugin::Session::HMAC::hmac_flash }
 sub clear_flash { goto &Catalyst::Plugin::Session::HMAC::hmac_clear_flash }
 sub keep_flash { goto &Catalyst::Plugin::Session::HMAC::hmac_keep_flash }
 
-# catalyst hooks
-sub prepare_session { goto &Catalyst::Plugin::Session::HMAC::prepare_hmac_session }
-sub finalize_session { goto &Catalyst::Plugin::Session::HMAC::finalize_hmac_session }
+sub prepare_session {}
+sub finalize_session {}
 
 # methods for compat that do nothing.
 sub calculate_extended_session_expires {}

@@ -34,4 +34,9 @@ sub get_non_expired_key :Local {
     $c->res->body($c->session->{foo});
 }
 
+sub request_count :Local {
+    my ($self, $c) = @_;
+    $c->res->body($c->session->{request_count});
+}
+
 1;

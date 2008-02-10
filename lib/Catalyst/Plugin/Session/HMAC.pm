@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use Crypt::Util;
 use Class::C3;
+use Carp;
 
 our $VERSION = '0.00_01';
 
@@ -40,7 +41,7 @@ sub hmac_session_expire_key { # this is not auto-extended like everything else
 
 sub hmac_session {
     my $c = shift;
-    die 'It is too early/late to call $c->hmac_session' if !$c->{hmac_session};
+    croak 'It is too early/late to call $c->hmac_session' if !$c->{hmac_session};
     return $c->{hmac_session};
 }
 
@@ -145,13 +146,21 @@ sub prepare_hmac_session {
         $c->log->warn($error) unless $error =~ /No hmac_session cookie/;
         $c->_prepare_empty_hmac_session;
     }
-    
+
+    if($c->can('prepare_session')){
+        $c->prepare_session(@_);
+    }
+
     return;
 }
 
 sub finalize_hmac_session {
     my $c = shift;
 
+    if($c->can('finalize_session')){
+        $c->finalize_session(@_);
+    }
+    
     # calc expires
     my $perl_expires   = $c->_calculate_hmac_session_expiry;
     my $cookie_expires = $c->_calculate_hmac_session_cookie_expiry;
