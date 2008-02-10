@@ -147,17 +147,17 @@ sub prepare_hmac_session {
         $c->_prepare_empty_hmac_session;
     }
 
-    if($c->can('prepare_session')){
+    if($c->isa('Catalyst::Plugin::Session::HMAC::Compat')){
         $c->prepare_session(@_);
     }
-
+    
     return;
 }
 
 sub finalize_hmac_session {
     my $c = shift;
 
-    if($c->can('finalize_session')){
+    if($c->isa('Catalyst::Plugin::Session::HMAC::Compat')){
         $c->finalize_session(@_);
     }
     
