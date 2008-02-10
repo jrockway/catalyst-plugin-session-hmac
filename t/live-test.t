@@ -22,7 +22,7 @@ my $orig_expires;
 $mech->cookie_jar->scan( 
     sub { 
         $orig_expires = TestApp->
-          _thaw_session_string(uri_unescape($_[2]))->{__expires};
+          _thaw_hmac_session_string(uri_unescape($_[2]))->{__expires};
     }
 );
 
@@ -47,7 +47,7 @@ my $new_expires;
 $mech->cookie_jar->scan( 
     sub { 
         $new_expires = TestApp->
-          _thaw_session_string(uri_unescape($_[2]))->{__expires};
+          _thaw_hmac_session_string(uri_unescape($_[2]))->{__expires};
     }
 );
 
